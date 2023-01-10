@@ -1,0 +1,1057 @@
+---
+title: "A economia no longo prazo: modelo de Solow e suas extensões"
+subtitle: "Macroeconomia para Investimentos"
+author: 'Vítor Wilher<br><span style = "font-size: 70%;">Cientista-Chefe da Análise Macro<br>'
+#date: "<span style = 'font-size: 70%;'>`r format(Sys.Date(), '%d de %B de %Y')`</span>"
+output:
+  xaringan::moon_reader:
+    css: xaringan-themer.css
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      navigation: 
+        scroll: false
+params:
+  logo_slides: "https://analisemacro.com.br/wp-content/uploads/dlm_uploads/2021/10/logo_am.png"
+---
+
+```{r, file = "./rmd/setup.R", include=FALSE}
+```
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+options(htmltools.preserve.raw = FALSE)
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning   = FALSE,  # exibir avisos do console?
+  message   = FALSE,  # exibir mensagens do console?
+  dpi       = 300,    # resolução
+  fig.align = "center"# alinhamento de imagens
+  )
+```
+
+```{css, echo=FALSE}
+pre {
+  white-space: pre-wrap;
+  overflow-y: scroll !important;
+  max-height: 45vh !important;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.tiny55 .remark-code {
+  font-size: 55%; !important;
+}
+```
+
+
+
+### Temas de hoje
+
+- Fatos estilizados<br><br>
+- Modelo básico de Solow<br><br>
+- Modelo com tecnologia<br><br>
+- Modelo com capital humano
+
+
+---
+### Modelo básico de Solow
+
+.pull-left[
+
+- **Motivação**: entender porquê alguns países são tão ricos e outros tão pobres. (A)
+
+- **O que é**: é um modelo que busca descrever o crescimento econômico no longo prazo. (B)
+
+Estudaremos o crescimento econômico de longo prazo começando pelo que **observamos** (A) e então exploraremos a **teoria** (B) que explica essas observações.
+
+Essa aula é um resumo objetivo do livro "Introdução à Teoria do Crescimento Econômico" de Charles Jones.
+
+]
+
+.pull-right[
+
+```{r, echo=FALSE, fig.asp=0.7}
+library(magrittr)
+
+dados <- dplyr::as_tibble(pwt10::pwt10.0)
+
+dados %>% 
+  dplyr::filter(country %in% c("Brazil", "United States of America")) %>% 
+  dplyr::select("year", "country", "rgdpo", "pop") %>% 
+  dplyr::mutate(
+    gdp_pc = rgdpo / pop,
+    country = dplyr::recode(
+      country, 
+      "Brazil" = "Brasil",
+      "United States of America" = "Estados Unidos")
+    ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::aes(x = year, y = gdp_pc, color = country) +
+  ggplot2::geom_line(size = 1) +
+  ggplot2::scale_y_continuous(
+    breaks = scales::breaks_extended(n = 8),
+    labels = scales::label_dollar(big.mark = ".", decimal.mark = ",")
+    ) +
+  ggplot2::scale_color_manual(values = c("#282f6b", "#b22200")) +
+  ggplot2::labs(
+    title    = "PIB per capita",
+    subtitle = "Países selecionados",
+    y        = "Dólares",
+    x        = "Ano",
+    color    = NULL,
+    caption  = "**Nota**: PIB real, PPP, US$ milhões de 2017.<br>**Dados**: PWT 10.0<br>**Elaboração**: analisemacro.com.br"
+    ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top",
+    legend.text      = ggplot2::element_text(size = 10, face = "bold"),
+    axis.text        = ggplot2::element_text(size = 10, face = "bold"),
+    plot.title       = ggtext::element_markdown(size = 20, face = "bold", color = "#282f6b"),
+    plot.subtitle    = ggplot2::element_text(size = 12, face = "bold"),
+    plot.caption     = ggtext::element_textbox_simple(
+      size = 9,
+      padding = ggplot2::unit(c(10, 0, 0, 0), "pt")
+      )
+  )
+```
+
+]
+
+No que se refere a (A), existem alguns chamados "fatos estilizados" que, quando olhamos os **dados**, se manifestam nas economias ao redor do mundo. Vamos dar uma olhada nestes fatos e dados agora!
+
+
+---
+### Fatos estilizados
+
+- **Fato 1**: há grande variação entre as rendas per capita das economias. Os países mais pobres têm rendas per capita que são inferiores a 5% da renda per capita dos países mais ricos.
+
+```{r, echo=FALSE}
+my_format <- reactable::colFormat(digits = 2, locales = "pt-br", separators = TRUE)
+
+fatos <- dados %>% 
+  dplyr::filter(
+    country %in% c(
+      "Brazil",
+      "United States of America",
+      "Germany",
+      "Japan",
+      "Zimbabwe",
+      "Uganda",
+      "Venezuela (Bolivarian Republic of)"
+      )
+    ) %>%
+  dplyr::mutate(
+    gdp_pc = rgdpo / pop,
+    gdp_pw = rgdpo / emp,
+    country = dplyr::recode(
+      country, 
+      "Brazil"                             = "Brasil",
+      "United States of America"           = "Estados Unidos",
+      "Germany"                            = "Alemanha",
+      "Japan"                              = "Japão",
+      "Zimbabwe"                           = "Zimbábue",
+      "Venezuela (Bolivarian Republic of)" = "Venezuela"
+      ) %>% 
+      factor(
+        levels = c(
+          "Brasil",
+          "Alemanha",
+          "Estados Unidos",
+          "Japão",
+          "Uganda",
+          "Venezuela",
+          "Zimbábue"
+          )
+        )
+    ) %>% 
+  dplyr::arrange(country, year) %>% 
+  dplyr::group_by(country) %>% 
+  dplyr::mutate(
+    gdp_growth = mean(
+      x     = (log(gdp_pw) - dplyr::lag(log(gdp_pw), 1)),
+      na.rm = TRUE
+      ) * 100
+    )
+
+fatos %>% 
+  dplyr::filter(year == max(year)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select("country", "gdp_pc", "gdp_pw", "labsh", "gdp_growth") %>% 
+  reactable::reactable(
+    style = list(fontSize = "18px"),
+    columns = list(
+      country    = reactable::colDef(name = "País"),
+      gdp_pc     = reactable::colDef(name = "PIB per capita (US$)", format = my_format),
+      gdp_pw     = reactable::colDef(name = "PIB por trabalhador (US$)", format = my_format),
+      labsh      = reactable::colDef(name = "Tx. de partic. da mão de obra (%)", format = my_format, na = "-"),
+      gdp_growth = reactable::colDef(name = "Tx. de crescimento anual (%, 1950-2019)", format = my_format)
+      )
+    ) %>% 
+  reactablefmtr::add_source(
+    source = reactablefmtr::html(
+      "<br><b>Nota</b>: países selecionados (2019); PIB real, PPP, US$ milhões de 2017; tx. de cresc. é a var. anual média do log. natural do PIB/trabalhador. <br> <b>Dados</b>: PWT 10.0 <br> <b>Elaboração</b>: analisemacro.com.br"
+      ),
+    font_size  = 14, 
+    font_color = "#282f6b"
+    )
+```
+
+
+---
+### Fatos estilizados
+
+- **Fato 2**: as taxas de crescimento econômico variam substancialmente entre um país e outro.
+
+```{r, echo=FALSE, fig.width=12, fig.asp=0.45}
+fatos %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    gdp_growth = (log(gdp_pw) - dplyr::lag(log(gdp_pw), 1)) * 100
+    ) %>%
+  dplyr::filter(year >= 1955) %>% 
+  ggplot2::ggplot() +
+  ggplot2::aes(x = year, y = gdp_growth, color = country) +
+  ggplot2::geom_line(size = 1, show.legend = FALSE) +
+  ggplot2::facet_wrap(facets = ~country, scales = "free") +
+  ggplot2::scale_color_manual(
+    values = c(
+      "#282f6b",
+      "#b22200",
+      "#eace3f",
+      "#224f20",
+      "#5f487c",
+      "#b35c1e",
+      "#419391",
+      "#839c56",
+      "#3b89bc",
+      "#666666"
+      )
+    ) +
+  ggplot2::labs(
+    title    = "Crescimento do PIB por trabalhador",
+    subtitle = "Países selecionados",
+    y        = "%",
+    x        = "Ano",
+    color    = NULL,
+    caption  = "**Nota**: PIB real, PPP, US$ milhões de 2017.<br>**Dados**: PWT 10.0<br>**Elaboração**: analisemacro.com.br"
+    ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    axis.text        = ggplot2::element_text(size = 10, face = "bold"),
+    strip.background = ggplot2::element_blank(),
+    strip.text       = ggplot2::element_text(size = 12, color = "black", face = "bold"), 
+    plot.title       = ggtext::element_markdown(size = 20, face = "bold", color = "#282f6b"),
+    plot.subtitle    = ggplot2::element_text(size = 12, face = "bold"),
+    plot.caption     = ggtext::element_textbox_simple(
+      size = 9,
+      padding = ggplot2::unit(c(10, 0, 0, 0), "pt")
+      )
+  )
+```
+
+
+---
+### Fatos estilizados
+
+- **Fato 3**: as taxas de crescimento não são necessariamente constantes ao longo do tempo.
+
+```{r, echo=FALSE, fig.width=12, fig.asp=0.45}
+fatos %>% 
+  dplyr::mutate(
+    date = lubridate::make_date(year = year) %>% 
+      lubridate::floor_date(unit = lubridate::years(10)) %>% 
+      lubridate::year(), 
+    .before = 1
+    ) %>% 
+  dplyr::group_by(date, country) %>%  
+  dplyr::summarise(
+    gdp_growth = mean(log(gdp_pw) - dplyr::lag(log(gdp_pw), 1), na.rm = TRUE) * 100,
+    .groups = "drop"
+    ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::aes(x = date, y = gdp_growth, fill = country) +
+  ggplot2::geom_col(show.legend = FALSE) +
+  ggplot2::facet_wrap(facets = ~country, scales = "free") +
+  ggplot2::scale_x_continuous(breaks = scales::extended_breaks(n = 10)) +
+  ggplot2::scale_fill_manual(
+    values = c(
+      "#282f6b",
+      "#b22200",
+      "#eace3f",
+      "#224f20",
+      "#5f487c",
+      "#b35c1e",
+      "#419391",
+      "#839c56",
+      "#3b89bc",
+      "#666666"
+      )
+    ) +
+  ggplot2::labs(
+    title    = "Crescimento médio do PIB por trabalhador",
+    subtitle = "Países selecionados",
+    y        = "%",
+    x        = "Década",
+    color    = NULL,
+    caption  = "**Nota**: PIB real, PPP, US$ milhões de 2017.<br>**Dados**: PWT 10.0<br>**Elaboração**: analisemacro.com.br"
+    ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    axis.text        = ggplot2::element_text(size = 10, face = "bold"),
+    strip.background = ggplot2::element_blank(),
+    strip.text       = ggplot2::element_text(size = 12, color = "black", face = "bold"), 
+    plot.title       = ggtext::element_markdown(size = 20, face = "bold", color = "#282f6b"),
+    plot.subtitle    = ggplot2::element_text(size = 12, face = "bold"),
+    plot.caption     = ggtext::element_textbox_simple(
+      size = 9,
+      padding = ggplot2::unit(c(10, 0, 0, 0), "pt")
+      )
+  )
+  
+
+
+```
+
+
+---
+### Fatos estilizados
+
+- **Fato 4**: a posição relativa de um país na distribuição mundial da renda per capita nao é imutável. Os países podem passar de "pobres" a "ricos" e vice-versa.
+
+```{r, echo=FALSE, fig.width=12, fig.asp=0.4}
+fato4 <- dados %>% 
+  dplyr::filter(
+    country %in% c(
+      "Argentina",
+      "United States of America"
+      )
+    ) %>% 
+  dplyr::mutate(
+    gdp_pc = rgdpo / pop,
+    country = dplyr::recode(country, "United States of America" = "Estados Unidos")
+    )
+
+g1 <- fato4 %>% 
+  ggplot2::ggplot() +
+  ggplot2::aes(x = year, y = gdp_pc, color = country) +
+  ggplot2::geom_line(size = 1) +
+  ggplot2::scale_color_manual(values = c("#282f6b", "#b22200")) +
+  ggplot2::scale_y_continuous(
+    labels = scales::label_dollar(big.mark = ".", decimal.mark = ",")
+    ) +
+  ggplot2::labs(
+    title    = "PIB per capita",
+    subtitle = "Países selecionados",
+    y        = "US$",
+    x        = "Ano",
+    color    = NULL,
+    caption  = "**Nota**: PIB real, PPP, US$ milhões de 2017.<br>**Dados**: PWT 10.0<br>**Elaboração**: analisemacro.com.br"
+    ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position  = "top",
+    legend.text      = ggplot2::element_text(size = 12, face = "bold"), 
+    axis.text        = ggplot2::element_text(size = 10, face = "bold"),
+    plot.title       = ggtext::element_markdown(size = 16, face = "bold", color = "#282f6b"),
+    plot.subtitle    = ggplot2::element_text(size = 12, face = "bold"),
+    plot.caption     = ggtext::element_textbox_simple(
+      size = 9,
+      padding = ggplot2::unit(c(10, 0, 0, 0), "pt")
+      )
+  )
+
+g2 <- fato4 %>% 
+  tidyr::pivot_wider(
+    id_cols = "year",
+    names_from = "country",
+    values_from = "gdp_pc"
+    ) %>% 
+  dplyr::mutate(prop = `Argentina` / `Estados Unidos`) %>% 
+  ggplot2::ggplot() +
+  ggplot2::aes(x = year, y = prop) +
+  ggplot2::geom_area(fill = "#282f6b") +
+  ggplot2::scale_y_continuous(
+    labels = scales::label_number(big.mark = ".", decimal.mark = ",")
+    ) +
+  ggplot2::labs(
+    title    = "**Argentina**: PIB per capita em proporção aos EUA",
+    subtitle = "Em fins do século XIX o país era um dos mais ricos do mundo",
+    y        = "PIB p.c. Argentina / PIB p.c. EUA",
+    x        = "Ano",
+    color    = NULL,
+    caption  = "**Nota**: PIB real, PPP, US$ milhões de 2017.<br>**Dados**: PWT 10.0<br>**Elaboração**: analisemacro.com.br"
+    ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    axis.text        = ggplot2::element_text(size = 10, face = "bold"),
+    plot.title       = ggtext::element_markdown(size = 16, color = "#282f6b"),
+    plot.subtitle    = ggplot2::element_text(size = 12, face = "bold"),
+    plot.caption     = ggtext::element_textbox_simple(
+      size = 9,
+      padding = ggplot2::unit(c(10, 0, 0, 0), "pt")
+      )
+  )
+
+library(patchwork)
+
+g1 + g2
+```
+
+
+---
+### Modelo básico de Solow
+
+O modelo básico de crescimento econômico que exploraremos agora foi proposto por Solow (1956), sendo o mesmo agraciado com o Nobel em 1987.
+
+**Hipóteses simplificadoras**:
+
+- O mundo é formado por países que produzem e consomem um único bem homogêneo (produto, unidades do PIB);
+- Não há comércio internacional no modelo (economia fechada);
+- A tecnologia é exógena (i.e. P&D não afeta a tecnologia existente);
+- As pessoas poupam uma fração constante da sua renda e investimento = poupança;
+- As pessoas gastam uma fração constante de tempo acumulando qualificações;
+- Toda a população da economia faz parte da força de trabalho (todas as pessoas trabalham).
+
+---
+### Modelo básico de Solow
+
+O modelo é construído em torno de **duas equações**. A primeira delas descreve como insumos de capital (escavadeiras, semicondutores, etc.) e de trabalho (operários, engenheiros, etc.) se combinam para gerar produto.
+
+.pull-left[
+
+**Função de produção (FP)**:
+
+$$Y = f(K, L) = K^\alpha L^{1-\alpha}$$
+onde:
+
+$Y$ = produto;<br>
+$K$ = insumos de capital;<br>
+$L$ = insumos de trabalho;<br>
+$\alpha$ = qualquer número entre 0 e 1.
+
+A função é caracterizada como de retornos constantes à escala (se todos os insumos forem duplicados, o produto dobrará).
+
+]
+
+
+.pull-right[
+
+O interesse aqui é na evolução do **produto por trabalhador** ou per capita. Sendo assim, podemos reescrever a FP como:
+
+$$
+\begin{align*}
+  \frac{Y}{L} & = \frac{K^\alpha L^{1-\alpha}}{L}\\
+  y & = \frac{K^\alpha L^1}{L L^{\alpha}} = \frac{K^\alpha}{L^{\alpha}} = \left(\frac{K}{L}\right)^\alpha\\ 
+  y & = k^\alpha
+\end{align*}
+$$
+
+Notações: $y \equiv Y/L$ e $k \equiv K/L$.
+
+]
+
+
+---
+### Modelo básico de Solow
+
+Gráficamente, a função de produção (Cobb-Douglas) pode ser representada como abaixo:
+
+.pull-left[
+
+- Com mais capital por trabalhador, as empresas dessa economia geram mais produto por trabalhador;
+- Com $\alpha = 0,25$, há retornos decrescentes ao capital por trabalhador (cada unidade adicional de capital dada ao trabalhador faz o produto crescer menos e menos).
+]
+
+.pull-right[
+
+```{r, echo=FALSE}
+k <- 1:100
+alpha <- 0.25
+y <- k^alpha
+
+ggplot2::ggplot() +
+  ggplot2::aes(x = k, y = y) +
+  ggplot2::geom_line(size = 1, color = "#282f6b") +
+  ggplot2::annotate(
+    geom  = "text",
+    x     = max(k) + 6,
+    y     = max(y),
+    label = latex2exp::TeX("$y = k^\\alpha$"),
+    size  = 5
+    ) +
+  ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0, 0.1))) +
+  ggplot2::scale_y_continuous(
+    labels = scales::label_number(decimal.mark = ",", big.mark = "."),
+    expand = ggplot2::expansion(mult = c(0, 0.1))
+    ) +
+  ggplot2::labs(
+    title    = "Função de Produção (Cobb-Douglas)",
+    y        = "Produto por trabalhador (y)",
+    x        = "Capital por trabalhador (k)",
+    subtitle = latex2exp::TeX("Assumindo $\\alpha = 0,25$"),
+    caption  = "**Elaboração**: analisemacro.com.br"
+    ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    axis.title       = ggplot2::element_text(face = "bold"),
+    axis.text        = ggplot2::element_text(size = 10, face = "bold"),
+    plot.title       = ggtext::element_markdown(size = 20, face = "bold", color = "#282f6b"),
+    plot.subtitle    = ggplot2::element_text(size = 12, face = "bold"),
+    plot.caption     = ggtext::element_textbox_simple(
+      size = 9,
+      padding = ggplot2::unit(c(10, 0, 0, 0), "pt")
+      )
+  )
+```
+
+]
+
+Exercício: represente a FP, como acima, para outros valores de $\alpha$.
+
+
+---
+### Modelo básico de Solow
+
+A segunda equação do modelo de Solow descreve como o capital se acumula: aumenta com investimento e diminui com a depreciação no processo produtivo.
+
+**Equação de acumulação de capital (AC)**:
+
+$$\dot{K} = sY - \delta K$$
+onde:
+
+$\dot{K}$ = variação no estoque de capital (variação por período, $K_{t+1} - K_t$, ou ainda a derivada de K em relação ao tempo, ou seja, $\dot{K} = \frac{\partial K}{\partial t}$);<br>
+$sY$ = montante de investimento bruto, assumindo que $s$ é a fração constante de renda poupada/investida;<br>
+$\delta K$ = montante de depreciação, sendo o delta $\delta$ a taxa de depreciação do estoque de capital.
+
+Como na FP, aqui também vamos reescrever a AC em termos de **capital por trabalhador**. Primeiro definimos a taxa de crescimento da força de trabalho (e população) como:
+
+$$n = \frac{\dot{L}}{L}$$
+
+
+---
+### Modelo básico de Solow
+
+O próximo passo é **derivar o capital por trabalhador em relação ao tempo**:
+
+$$
+\begin{align*}
+  k & = \frac{K}{L}\\
+  \frac{\partial k}{\partial t} & = \frac{\partial}{\partial t} \left( \frac{K}{L} \right), \text{ aplicando a regra do quociente:}\\
+  \frac{\partial k}{\partial t} & = \frac{\frac{\partial K}{\partial t} L - \frac{\partial L}{\partial t} K}{L^2}, \text{ simplificando a notação:}\\
+  \dot{k} & = \frac{\dot{K} L - \dot{L} K}{L^2}\\
+  \dot{k} & = \frac{\dot{K} L}{L^2} - \frac{\dot{L} K}{L^2} \Longrightarrow \frac{\dot{K}}{L} - \frac{\dot{L}}{L} \frac{K}{L} \Longrightarrow \frac{\dot{K}}{L} - nk, \text{ isolando para } \frac{\dot{K}}{L} \text{ chegamos em:} \\
+  \frac{\dot{K}}{L} & = \dot{k} + nk
+\end{align*}
+$$
+
+
+---
+### Modelo básico de Solow
+
+O último passo é reescrever a equação AC em termos de capital por trabalhador:
+
+$$
+\begin{align*}
+  \dot{K} & = sY - \delta K, \text{ dividindo por L:}\\
+  \frac{\dot{K}}{L} & = \frac{sY - \delta K}{L}\\
+  \frac{\dot{K}}{L} & = sy - \delta k, \text{ utilizando a última expressão do slide anterior:}\\
+  \dot{k} + nk & = sy - \delta k, \text{ isolando para } \dot{k}:\\
+  \dot{k} & = sy - (n + \delta) k
+\end{align*}
+$$
+
+Essa equação diz que a variação no capital por trabalhador, $\dot{k}$, é determinada por três termos, a cada período no tempo:
+
+- $sy$: investimento por trabalhador &rarr; aumenta $k$;
+- $\delta k$: depreciação por trabalhador &rarr; reduz $k$;
+- $nk$: crescimento populacional (termo novo) &rarr; reduz $k$.
+
+
+---
+### Modelo básico de Solow
+
+.pull-left[
+
+Derivamos as chamadas duas equações fundamentais do modelo de crescimento de Solow:
+
+- **Produto por trabalhador** &rarr; $y = k^\alpha$
+- **Capital por trabalhador** &rarr; $\dot{k} = sy - (n + \delta) k$
+
+Com essas equações, dado um estoque de capital por trabalhador inicial, $k_0$, uma taxa de crescimento populacional, $n$, uma taxa de depreciação do capital, $\delta$, e uma taxa de poupança/investimento, $s$, é possível obter toda a trajetória de $k$ e das demais variáveis endógenas do modelo.
+
+Note que $sy = sk^\alpha$.
+
+]
+
+.pull-right[
+
+Graficamente, representamos as equações no chamado diagrama de Solow, como abaixo.
+
+```{r, echo=FALSE}
+k <- 0:100
+alpha <- 0.25
+y <- k^alpha
+s <- 0.5
+n <- 0.01
+delta <- 0.02
+sy <- s * y
+ndk <- (n + delta) * k
+
+ggplot2::ggplot() +
+  ggplot2::aes(x = k) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(y = y),
+    size    = 1, 
+    color   = "#282f6b"
+    ) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(y = sy),
+    size    = 1, 
+    color   = "#224f20"
+    ) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(y = ndk),
+    size    = 1, 
+    color   = "#b22200"
+    ) +
+  ggplot2::annotate(
+    geom  = "text",
+    x     = max(k) + 6,
+    y     = max(y) + 0.1,
+    label = latex2exp::TeX("$y = k^\\alpha$", bold = TRUE),
+    size  = 5,
+    color = "#282f6b"
+    ) +
+  ggplot2::annotate(
+    geom  = "text",
+    x     = max(k) + 6,
+    y     = max(sy),
+    label = latex2exp::TeX("$sy$", bold = TRUE),
+    size  = 5,
+    hjust = 1,
+    color = "#224f20"
+    ) +
+  ggplot2::annotate(
+    geom  = "text",
+    x     = max(k) + 6,
+    y     = max(ndk) - 0.05,
+    label = latex2exp::TeX("$(n + \\delta)k$", bold = TRUE),
+    size  = 5,
+    hjust = 0.35,
+    color = "#b22200"
+    ) +
+  ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0, 0.11))) +
+  ggplot2::scale_y_continuous(
+    labels = scales::label_number(decimal.mark = ",", big.mark = "."),
+    expand = ggplot2::expansion(mult = c(0, 0.1))
+    ) +
+  ggplot2::labs(
+    title    = "Diagrama de Solow",
+    y        = latex2exp::TeX(
+      "$\\overset{\\overset{y}{sy}}{\\overset{(n + \\delta)k}{}}$",
+      bold = TRUE
+      ),
+    x        = "Capital por trabalhador (k)",
+    subtitle = latex2exp::TeX(
+      "Assumindo $\\alpha = 0.25,\\ s = 0.5,\\ n = 0.01\\ e \\ \\delta = 0.02$"
+      ),
+    caption  = "**Elaboração**: analisemacro.com.br"
+    ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    axis.title       = ggplot2::element_text(face = "bold"),
+    axis.title.y     = ggplot2::element_text(
+      angle  = 0, 
+      margin = ggplot2::margin(r = 10),
+      size   = 16
+      ), 
+    axis.text        = ggplot2::element_text(size = 10, face = "bold"),
+    plot.title       = ggtext::element_markdown(size = 20, face = "bold", color = "#282f6b"),
+    plot.subtitle    = ggplot2::element_text(size = 12, face = "bold"),
+    plot.caption     = ggtext::element_textbox_simple(
+      size    = 9,
+      padding = ggplot2::unit(c(10, 0, 0, 0), "pt")
+      )
+    )
+```
+
+]
+
+O que o diagrama de Solow nos diz? Com a representação gráfica podemos entender, dentre outras:
+
+- Como essa economia evolui ao longo do tempo, ou seja, o produto por trabalhador;
+- Se a economia está acumulando ou desacumulando capital por trabalhador.
+
+
+
+---
+### Modelo básico de Solow
+
+A análise do modelo de Solow comumente se dá em torno do chamado **estado estacionário**, ou seja:
+
+.pull-left[
+
+- Se $sy > (n + \delta) k$, então $\dot k > 0$ e a economia está **acumulando capital**;
+- Se $sy = (n + \delta) k$, então $\dot k = 0$ e a economia atinge o **estado estacionário**;
+- Se $sy < (n + \delta) k$, então $\dot k < 0$ e a economia está **desacumulando capital**.
+
+Observe ainda que a diferença entre o produto e o investimento por trabalhador no estado estacionário, $y^*$ e $sy^*$, trata-se do consumo por trabalhador nessa economia, ou seja, a fração da renda não poupada.
+
+]
+
+.pull-right[
+
+```{r, echo=FALSE}
+k <- 0:100
+alpha <- 0.25
+y <- k^alpha
+s <- 0.5
+n <- 0.01
+delta <- 0.02
+sy <- s * y
+ndk <- (n + delta) * k
+
+# Encontra interpolação linear entre as curvas (objetivo é encontrar onde a diferença 
+# de sy e ndk seja aproximadamente igual a zero, portanto remove-se o zero inicial)
+steady <- approxfun(x = sy[-1] - ndk[-1], y = k[-1], rule = 2) 
+state <- steady(0)
+
+# Função para labels/breaks no xy-axis
+x_label <- function(k, k_star, investment, depreciation) {
+  
+  sy <- investment
+  ndk <- depreciation
+  k_star <- round(k_star, 0)
+  breaks <- seq(k[1], length(k), by = 5)
+  
+  before_k <- k[sy > ndk]
+  before_k <- before_k[before_k %in% breaks]
+  
+  after_k <- k[sy < ndk]
+  after_k <- after_k[after_k %in% breaks]
+  
+  df <- dplyr::tibble(breaks = c(before_k, k_star, after_k))
+  df <- dplyr::mutate(
+    df, 
+    labels = dplyr::case_when(
+      breaks < k_star ~ " > ",
+      breaks == k_star ~ " k* ",
+      breaks > k_star ~ " < "
+      )
+    )
+  
+  return(df)
+  
+}
+
+y_label <- function(k_star, y, sy, k) {
+  
+  df <- dplyr::tibble(y = y, sy = sy, k = k)
+  df <- dplyr::filter(df, k == round(k_star, 0))
+  return(c(df$y, df$sy))
+  
+}
+
+
+ggplot2::ggplot() +
+  ggplot2::aes(x = k) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(y = y),
+    size    = 1, 
+    color   = "#282f6b"
+    ) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(y = sy),
+    size    = 1, 
+    color   = "#224f20"
+    ) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(y = ndk),
+    size    = 1, 
+    color   = "#b22200"
+    ) +
+  ggplot2::annotate(
+    geom     = "segment",
+    x        = k[round(state) + 1], 
+    xend     = k[round(state) + 1], 
+    y        = 0, 
+    yend     = y_label(state, y, sy, k)[1],
+    linetype = "dashed"
+    ) +
+  ggplot2::annotate(
+    geom     = "segment",
+    x        = 0, 
+    xend     = k[round(state) + 1], 
+    y        = y_label(state, y, sy, k)[1], 
+    yend     = y_label(state, y, sy, k)[1],
+    linetype = "dashed"
+    ) +
+  ggplot2::annotate(
+    geom     = "segment",
+    x        = 0, 
+    xend     = k[round(state) + 1], 
+    y        = y_label(state, y, sy, k)[2], 
+    yend     = y_label(state, y, sy, k)[2],
+    linetype = "dashed"
+    ) +
+  ggplot2::annotate(
+    geom = "point",
+    x    = k[round(state) + 1], # adiciona um dado a remoção do zero inicial
+    y    = sy[round(state) + 1],
+    size = 4.5
+    ) +
+  ggrepel::geom_text_repel(
+    mapping = ggplot2::aes(
+      x = k[round(state) + 1],
+      y = sy[round(state) + 1],
+      label = "Estado Estacionário"
+      ),
+    size        = 4,
+    fontface    = "bold",
+    min.segment.length = 0,
+    nudge_x = 25,
+    nudge_y = -0.15,
+    inherit.aes = FALSE
+    ) +
+  ggplot2::annotate(
+    geom  = "text",
+    x     = max(k) + 7,
+    y     = max(y) + 0.1,
+    label = latex2exp::TeX("$y = k^\\alpha$", bold = TRUE),
+    size  = 5,
+    color = "#282f6b"
+    ) +
+  ggplot2::annotate(
+    geom  = "text",
+    x     = max(k) + 7,
+    y     = max(sy),
+    label = latex2exp::TeX("$sy$", bold = TRUE),
+    size  = 5,
+    hjust = 1,
+    color = "#224f20"
+    ) +
+  ggplot2::annotate(
+    geom  = "text",
+    x     = max(k) + 7,
+    y     = max(ndk) - 0.05,
+    label = latex2exp::TeX("$(n + \\delta)k$", bold = TRUE),
+    size  = 5,
+    hjust = 0.35,
+    color = "#b22200"
+    ) +
+  ggplot2::scale_x_continuous(
+    breaks = x_label(k, state, sy, ndk)$breaks,
+    labels = x_label(k, state, sy, ndk)$labels,
+    expand = ggplot2::expansion(mult = c(0, 0.11))
+    ) +
+  ggplot2::scale_y_continuous(
+    breaks = y_label(state, y, sy, k),
+    labels = c("y*", "sy*"),
+    expand = ggplot2::expansion(mult = c(0, 0.1))
+    ) +
+  ggplot2::coord_cartesian(
+    xlim = c(0, NA), 
+    clip = "off"
+    ) +
+  ggbrace::geom_brace(
+    mapping = ggplot2::aes(
+      x = -c(10, 8), 
+      y = c(y_label(state, y, sy, k)[2], y_label(state, y, sy, k)[1])
+      ),
+    rotate = 270
+    ) +
+  ggplot2::annotate(
+    geom  = "text",
+    x     = -12,
+    y     = mean(y_label(state, y, sy, k)),
+    label = "Consumo",
+    size  = 4,
+    hjust = 1
+    ) +
+  ggplot2::labs(
+    title    = "Diagrama de Solow: estado estacionário",
+    y        = NULL,
+    x        = NULL,
+    caption  = "**Elaboração**: analisemacro.com.br"
+    ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    axis.title       = ggplot2::element_text(face = "bold"),
+    axis.title.y     = ggplot2::element_text(
+      angle  = 0, 
+      margin = ggplot2::margin(r = 10),
+      size   = 16
+      ), 
+    axis.text        = ggplot2::element_text(size = 10, face = "bold"),
+    plot.title       = ggtext::element_markdown(size = 16, face = "bold", color = "#282f6b"),
+    plot.subtitle    = ggplot2::element_text(size = 12, face = "bold"),
+    plot.caption     = ggtext::element_textbox_simple(
+      size    = 9,
+      padding = ggplot2::unit(c(10, 0, 0, 0), "pt")
+      ),
+    panel.grid  = ggplot2::element_blank(),
+    plot.margin = ggplot2::margin(t = 5, r = 5, b = 5, l = 70)
+    )
+```
+
+]
+
+Adiante avaliaremos os efeitos de choques em variáveis exógenas - como a taxa de poupança/crescimento populacional - e a resposta do modelo a essas mudanças, o que é chamado de "estática comparativa". Por enquanto, vamos retornar a provocação inicial do "**Por que somos pobres e eles ricos**?" A resposta proposta por essas equações é de que os países que têm altas razões poupança/investimento tendem a ser mais ricos, *ceteris paribus*, dado que acumulam mais capital por trabalhador, o que leva a mais produto (renda) por trabalhador.
+
+
+---
+### Modelo com tecnologia
+
+.pull-left[
+
+De modo a aprofundar o modelo básico e para gerar crescimento do produto per capita de maneira sustentada, introduzimos o chamado **progresso tecnológico (A)** à FP:
+
+**Função de Produção c/ Tecnologia (FPT)**:
+
+$$Y = f(K, AL) = K^\alpha (AL)^{1-\alpha}$$
+
+]
+
+.pull-right[
+
+Lembre-se que a tecnologia no modelo de Solow é exógena (é dada, "cai do céu"), de maneira que o termo A é uma variável de tecnologia que é **aumentadora de trabalho**: cada unidade de trabalho é mais produtiva quando o nível de tecnologia é mais elevado. A preocupação do modelo não é investigar as origens do progresso tecnológico, apenas **supõe-se que o termo A cresce a uma taxa constante**: $\frac{\dot A}{A} = g$.
+
+]
+
+Dado a introdução desse novo termo, agora vamos ver a repercurssão do mesmo nos resultados do modelo. Ou seja, o **objetivo** é utilizar a FPT e a equação de acumulação de capital (AC), idêntica ao visto anteriormente, e **reescrever as expressões em termos produto/capital por unidade efetiva de trabalho**, ou seja, por **AL**. Dessa forma, vamos utilizar as seguintes novas notações:
+
+- **Produto por trabalhador por unidade efetiva de trabalho** &rarr; $\tilde{y} \equiv Y/AL$
+- **Capital por trabalhador por unidade efetiva de trabalho** &rarr; $\tilde{k} \equiv K/AL$
+
+
+---
+### Modelo com tecnologia
+
+Agora vamos **derivar** a FPT e AC em termos per capita (por trabalhador) por unidade efetiva de trabalho (AL)<sup>1</sup>:
+
+.pull-left[
+
+**Função de Produção c/ Tecnologia (FPT)**:
+
+$$
+\small
+\begin{align*}
+  Y & = K^\alpha (AL)^{1-\alpha}, \tiny \text{ dividindo por AL:}\\
+  \frac{Y}{AL} & = \frac{K^\alpha (AL)^{1-\alpha}}{AL}\\
+  \tilde{y} & = \frac{K^\alpha AL}{AL (AL)^\alpha}\\
+  \tilde{y} & = \left( \frac{K}{AL} \right)^\alpha\\
+  \tilde{y} & = {\tilde{k}}^\alpha
+\end{align*}
+$$
+
+]
+
+.pull-right[
+
+**Acumulação de Capital c/ Tecnologia (ACT)**:
+
+$$
+\small
+\begin{align*}
+  \dot{K} & = sY - \delta K, \tiny \text{ dividindo por AL:}\\
+  \frac{\dot{K}}{AL} & = \frac{sY - \delta K}{AL}, \tiny \text{ simplificando as notações:}\\
+  \frac{\dot{K}}{AL} & = s \tilde{y} - \delta \tilde{k}, \tiny \text{ então derive } \tilde{k} = \frac{K}{AL} \text{ em relação ao tempo para chegar em:} \\
+  \dot{\tilde{k}} + (n + g)\tilde{k} & = s \tilde{y} - \delta \tilde{k}, \tiny \text{ isolando para } \dot{\tilde{k}}:\\
+  \dot{\tilde{k}} & = s \tilde{y} - (n + g +\delta) \tilde{k}
+\end{align*}
+$$
+
+]
+
+Da equação fundamental ACT acima, isolando<sup>2</sup> para $\tilde{y}$, podemos chegar a "renda por trabalhador por unidade efetiva de trabalho". Note que $\tilde{y} = Y/AL = y/A$, logo $y = A \tilde{y}$, o que implica que a **renda per capita dessa economia é determinada, em parte, pelo nível tecnológico**, $A$, o que não acontecia no modelo básico, além dos termos $s$, $n$, $g$, e $\delta$. Outras interpretações e representação no diagrama de Solow são semelhantes ao já exposto.
+
+.footnote[
+
+<sup>1</sup> O procedimento é relativamente o mesmo ao visto previamente, portanto seremos mais objetivos aqui.<br>
+<sup>2</sup> O resultado seria: $\tilde{y} = \left( \frac{s}{n + g + \delta} \right)^\frac{\alpha}{1-\alpha}$, o que implica, no estado estacionário, que $y^* = A\left( \frac{s}{n + g + \delta} \right)^\frac{\alpha}{1-\alpha}$, sendo que $y = A \tilde{y}$.
+
+]
+
+
+---
+### Modelo com capital humano
+
+Mankiw et al. (1992) ampliam o modelo de Solow com o capital humano, isto é, reconhecendo que a mão de obra de diferentes economias tem diferentes níveis de instrução e qualificação. Em outras palavras, **nem todo trabalhador é igual, a qualificação é importante para a produtividade**. Nesse sentido, capital humano pode significar "trabalho qualificado" e sua incorporação no modelo é similar ao já exposto.
+
+.pull-left[
+
+**Função de produção com capital humano (FPH)**:
+
+$$Y = f(K, A, H) = K^\alpha (AH)^{1-\alpha}$$
+onde:<br>
+$Y$ = produto da economia;<br>
+$K$ = capital físico;<br>
+$H$ = trabalho qualificado;<br>
+$A$ = tecnologia aumentadora de trabalho que cresce a uma taxa exógena $g$.
+
+]
+
+.pull-left[
+
+**Supõe-se** que as pessoas acumulam capital humano dedicando tempo à qualificação ao invés de trabalhar, de modo que $H$ (a mão de obra qualificada) segue a lei de movimento da função exponencial:
+
+$$H = e^{\lambda u}L$$
+onde:<br>
+$e$ = função exponencial, mesmo que $exp()$;<br>
+$\lambda$ = uma constante positiva (entenda como o retorno à qualificação, um ano adicional de estudo corresponde a um aumento de $\lambda$ vezes no salário);<br>
+$u$ = fração de tempo que as pessoas dedicam à qualificação;<br>
+$L$ = número de trabalhadores.
+
+]
+
+
+---
+### Modelo com capital humano
+
+Note que se o termo $\lambda = 0$, então $H = L$, o que significa que toda a mão de obra dessa economia é **não qualificada**. Em outras palavras, o capital humano/trabalho qualificado, $H$, é determinado (aumenta) por um fator em função da qualificação do trabalhador, $e^{\lambda u}$, e essa construção tem inspiração na literatura empírica que mostra que cada ano de estudo aumenta o salário em cerca de 10%.
+
+Por **exemplo**, suponha que você queira verificar o aumento de capital humano de um único trabalhador, $L = 1$, dado um ano adicional de qualificação, $u = 1$, e que a constante $\lambda$ seja igual a 10%, então esse fator seria aproximadamente:
+
+$$
+\begin{align*}
+  H & = e^{\lambda u}L\\
+  H & \approx 2,71^{(0,1 \times 1)} \times 1\\
+  H & \approx 1,10
+\end{align*}
+$$
+
+Nesse exemplo, **cada ano adicional de qualificação aumenta em 10% o capital humano do trabalhador** e isso, por construção, tem efeito sobre o produto. Se antes esse trabalhador produzia 1 sapato por hora, com esse ano adicional de qualificação agora ele produz 1,1 sapatos por hora.
+
+Dessa forma, podemos já interpretar que o modelo de Mankiw et al. (1992) permite verificar como a renda (produto) per capita pode variar entre países só em função da diferença de capital humano. **Países com baixa escolaridade serão no longo, de acordo com o modelo, os países pobres.**
+
+
+---
+### Modelo com capital humano
+
+As funções de produção e de acumulação do capital possuem a mesma forma do modelo com tecnologia e a derivação segue os mesmos procedimentos, a diferença é que representamos o produto e o capital em termos de AH, ou seja, a tecnologia aumentadora do capital humano. Como resultado:
+
+- **Função de Produção c/ Capital Humano (FPH)** &rarr; $\tilde{y} = {\tilde{k}}^\alpha$
+- **Acumulação de Capital c/ Capital Humano (ACH)** &rarr; $\dot{\tilde{k}} = s \tilde{y} - (n + g +\delta) \tilde{k}$
+
+Sendo assim, no estado estacionário $s \tilde{y} = (n + g +\delta) \tilde{k}$ e a **renda per capita por capital humano** da economia pode ser obtida isolando $\tilde{y}$:
+
+$$\tilde{y}^* = \left( \frac{s}{n + g + \delta} \right)^\frac{\alpha}{1-\alpha}$$
+
+Sabendo que $\tilde{y} = Y/AH$, em termos per capita, por $L$, é então $\tilde{y} = y/Ah$, logo $y = Ah \tilde{y}$, então, a **renda per capita no estado estacionário** é:
+
+$$y^* = Ah\left( \frac{s}{n + g + \delta} \right)^\frac{\alpha}{1-\alpha}$$
+
+
+---
+### Referências
+
+Feenstra, R. C., Inklaar, R., & Timmer, M. P. (2015). *The next generation of the Penn World Table*. American economic review, 105(10), 3150-82.
+
+Feenstra, R. C., Inklaar, R., & Timmer, M. P. (2021). *PWT 10.0: A User's Guide*. URL http://www.ggdc.net/pwt/.
+
+Mankiw, N. G., Romer, D., & Weil, D. N. (1992). *A contribution to the empirics of economic growth*. The quarterly journal of economics, 107(2), 407-437.
+
+Solow, R. M. (1956). *A contribution to the theory of economic growth*. The quarterly journal of economics, 70(1), 65-94.
